@@ -92,3 +92,10 @@ variable "tavily_api_key" {
   default     = ""
   sensitive   = true
 }
+
+# 관리자 페이지 에서 상품 변경 알림을 받을 이메일 주소. GitHub Actions 시크릿(ADMIN_NOTIFICATION_EMAIL) -> TF_VAR_admin_notification_email로 주입됨 (terraform.yml 참고). 로컬 tfvars에는 절대 평문으로 안 넣음 - CI 환경변수로만 전달
+variable "admin_notification_email" {
+  description = "Admin email for product change notifications"
+  type        = string
+  default     = ""
+}
