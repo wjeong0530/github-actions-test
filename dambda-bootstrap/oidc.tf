@@ -32,8 +32,8 @@ resource "aws_iam_role" "github_actions_role" {
       Condition = {
         StringLike = {
           "token.actions.githubusercontent.com:sub" = [
-            "repo:ahowme12@80324068/github-actions-test@1308447274:ref:refs/heads/main",
-            "repo:ahowme12@80324068/github-actions-test@1308447274:pull_request"
+            "repo:wjeong0530@278609285/github-actions-test@1323833666:ref:refs/heads/main",
+            "repo:wjeong0530@278609285/github-actions-test@1323833666:pull_request"
           ]
         }
       }
