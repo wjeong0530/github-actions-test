@@ -14,6 +14,15 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     steps:
+      - name: Debug OIDC token
+        shell: bash
+        run: |
+          TOKEN=$(curl \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
+            | jq -r '.value')
+
+          echo "$TOKEN" | cut -d "." -f2 | base64 -d | jq
       - name: Checkout
         uses: actions/checkout@v4
       - name: Configure AWS credentials (OIDC)
