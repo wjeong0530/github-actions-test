@@ -134,3 +134,23 @@ variable "review_moderation_lambda_name" {
   type    = string
   default = ""
 }
+
+variable "review_moderation_queue_url" {
+  type    = string
+  default = ""
+}
+
+variable "review_moderation_queue_arn" {
+  type    = string
+  default = ""
+}
+
+variable "quarantine_bucket_name" {
+  type    = string
+  default = ""
+}
+
+variable "quarantine_bucket_arn" {
+  type    = string
+  default = ""
+}

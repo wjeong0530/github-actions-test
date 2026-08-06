@@ -63,7 +63,7 @@ resource "aws_cloudfront_distribution" "static_site" {
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD", "OPTIONS"]
     cached_methods         = ["GET", "HEAD"]
-    compress                = true
+    compress               = true
     # AWS 관리형 "CachingOptimized" 정책 - 별도 캐시 정책을 직접 정의할 필요 없음
     cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
   }
@@ -208,5 +208,47 @@ resource "aws_s3_bucket_cors_configuration" "review_photos" {
     allowed_origins = ["*"]
     allowed_headers = ["*"]
     max_age_seconds = 3000
+  }
+}
+
+# Every review image lands here first. Public access is permanently blocked;
+# approved files are copied to review_photos by the moderation workflow.
+resource "aws_s3_bucket" "quarantine" {
+  bucket = "${var.region_name}-quarantine-${data.aws_caller_identity.current.account_id}"
+
+  tags = { Name = "${var.region_name}-quarantine" }
+}
+
+resource "aws_s3_bucket_public_access_block" "quarantine" {
+  bucket = aws_s3_bucket.quarantine.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "quarantine" {
+  bucket = aws_s3_bucket.quarantine.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "quarantine" {
+  bucket = aws_s3_bucket.quarantine.id
+
+  rule {
+    id     = "delete-quarantined-content-after-30-days"
+    status = "Enabled"
+
+    filter {}
+
+    expiration {
+      days = 30
+    }
   }
 }

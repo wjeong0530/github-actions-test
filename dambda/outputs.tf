@@ -26,9 +26,17 @@ output "vpc_peering_connection_id" {
 output "dynamodb_tables" {
   description = "DynamoDB 테이블 이름 (Global Table, us-east-1로 자동 복제됨)"
   value = {
-    users        = module.dynamodb.users_table_name
-    content      = module.dynamodb.content_table_name
-    translations = module.dynamodb.translations_table_name
+    users             = module.dynamodb.users_table_name
+    content           = module.dynamodb.content_table_name
+    translations      = module.dynamodb.translations_table_name
+    moderation_events = module.dynamodb.moderation_events_table_name
+  }
+}
+
+output "review_moderation_pipeline" {
+  value = {
+    queue_url         = module.review_pipeline.queue_url
+    state_machine_arn = module.review_pipeline.state_machine_arn
   }
 }
 

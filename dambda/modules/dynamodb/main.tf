@@ -218,3 +218,54 @@ resource "aws_dynamodb_table" "product_catalog" {
 
   tags = { Name = "${var.region_name}-product-catalog" }
 }
+
+# Automatically flagged reviews are retained here for the administrator review queue.
+# Clean reviews are not copied to this table.
+resource "aws_dynamodb_table" "moderation_events" {
+  name         = "${var.region_name}-moderation-events"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "eventId"
+
+  attribute {
+    name = "eventId"
+    type = "S"
+  }
+
+  attribute {
+    name = "status"
+    type = "S"
+  }
+
+  attribute {
+    name = "detectedAt"
+    type = "S"
+  }
+
+  # Powers GET /admin/moderation-events?status=PENDING in newest-first order.
+  global_secondary_index {
+    name            = "status-detectedAt-index"
+    projection_type = "ALL"
+
+    key_schema {
+      attribute_name = "status"
+      key_type       = "HASH"
+    }
+
+    key_schema {
+      attribute_name = "detectedAt"
+      key_type       = "RANGE"
+    }
+  }
+
+  # The worker writes expiresAt = detectedAt + 30 days for blocked content.
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+
+  replica {
+    region_name = var.replica_region
+  }
+
+  tags = { Name = "${var.region_name}-moderation-events" }
+}

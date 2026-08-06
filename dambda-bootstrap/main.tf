@@ -4,7 +4,7 @@ provider "aws" {
 
 # 상태 파일 저장을 위한 S3 버킷
 resource "aws_s3_bucket" "terraform_state" {
-  bucket = "dambda-bootstrap-bucket" # 고유한 버킷 이름
+  bucket = "dambda-bootstrap-bucket2" # 고유한 버킷 이름
 }
 
 # S3 버전 관리 활성화 (이전 상태 파일 기록 유지)

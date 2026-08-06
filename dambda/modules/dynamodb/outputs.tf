@@ -58,6 +58,18 @@ output "product_catalog_table_arn" {
   value = aws_dynamodb_table.product_catalog.arn
 }
 
+output "product_catalog_table_stream_arn" {
+  value = aws_dynamodb_table.product_catalog.stream_arn
+}
+
+output "moderation_events_table_name" {
+  value = aws_dynamodb_table.moderation_events.name
+}
+
+output "moderation_events_table_arn" {
+  value = aws_dynamodb_table.moderation_events.arn
+}
+
 output "table_arns" {
   description = "서울(홈 리전) ECS 태스크 IAM 정책에서 참조할 테이블/GSI ARN 목록"
   value = [
@@ -65,6 +77,8 @@ output "table_arns" {
     aws_dynamodb_table.content.arn,
     "${aws_dynamodb_table.content.arn}/index/*",
     aws_dynamodb_table.translations.arn,
+    aws_dynamodb_table.moderation_events.arn,
+    "${aws_dynamodb_table.moderation_events.arn}/index/*",
   ]
 }
 

@@ -74,3 +74,9 @@ variable "us_private_subnets" {
   type        = list(string)
   default     = ["10.1.10.0/24", "10.1.11.0/24"]
 }
+
+variable "admin_notification_email" {
+  description = "Email address that receives product create, update, and delete notifications. Leave empty to create only the SNS topic."
+  type        = string
+  default     = ""
+}

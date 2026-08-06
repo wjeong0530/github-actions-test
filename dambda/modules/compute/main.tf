@@ -81,6 +81,22 @@ locals {
     }
   ] : []
 
+  quarantine_statements = var.quarantine_bucket_arn != "" ? [
+    {
+      Action   = ["s3:PutObject", "s3:DeleteObject"]
+      Effect   = "Allow"
+      Resource = "${var.quarantine_bucket_arn}/*"
+    }
+  ] : []
+
+  review_queue_statements = var.review_moderation_queue_arn != "" ? [
+    {
+      Action   = ["sqs:SendMessage"]
+      Effect   = "Allow"
+      Resource = var.review_moderation_queue_arn
+    }
+  ] : []
+
   # backend/src/services/cognito.js가 회원가입/로그인/내정보 조회에 Admin* API를 태스크
   # IAM 자격증명으로 직접 호출함 (API Gateway JWT authorizer가 아니라 백엔드 자체 인증).
   # GetUser는 호출자의 액세스 토큰 기준으로 동작해 리소스 단위 스코프를 지원 안 함 -> "*"
@@ -142,6 +158,8 @@ resource "aws_iam_policy" "ecs_task_policy" {
       ],
       local.product_catalog_statements,
       local.review_photos_statements,
+      local.quarantine_statements,
+      local.review_queue_statements,
       local.cognito_statements,
     )
   })
@@ -214,6 +232,8 @@ locals {
         { name = "S3_REVIEW_PHOTOS_BUCKET", value = var.review_photos_bucket_name },
         { name = "S3_REVIEW_PHOTOS_DOMAIN", value = var.review_photos_bucket_domain },
         { name = "MODERATION_LAMBDA_NAME", value = var.review_moderation_lambda_name },
+        { name = "REVIEW_MODERATION_QUEUE_URL", value = var.review_moderation_queue_url },
+        { name = "S3_QUARANTINE_BUCKET", value = var.quarantine_bucket_name },
       ]
       } : {
       image       = "node:20-alpine"

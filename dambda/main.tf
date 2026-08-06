@@ -114,6 +114,31 @@ module "review_moderation" {
   review_photos_bucket_arn = module.storage.review_photos_bucket_arn
 }
 
+module "review_pipeline" {
+  source    = "./modules/review_pipeline"
+  providers = { aws = aws.seoul }
+
+  region_name                  = var.region_name
+  review_table_name            = module.dynamodb.product_reviews_table_name
+  review_table_arn             = module.dynamodb.product_reviews_table_arn
+  moderation_events_table_name = module.dynamodb.moderation_events_table_name
+  moderation_events_table_arn  = module.dynamodb.moderation_events_table_arn
+  quarantine_bucket_name       = module.storage.quarantine_bucket_name
+  quarantine_bucket_arn        = module.storage.quarantine_bucket_arn
+  public_review_bucket_name    = module.storage.review_photos_bucket_name
+  public_review_bucket_arn     = module.storage.review_photos_bucket_arn
+  public_review_bucket_domain  = module.storage.review_photos_bucket_regional_domain
+}
+
+module "admin_notifications" {
+  source    = "./modules/admin_notifications"
+  providers = { aws = aws.seoul }
+
+  region_name              = var.region_name
+  product_table_stream_arn = module.dynamodb.product_catalog_table_stream_arn
+  admin_email              = var.admin_notification_email
+}
+
 # 6. 컴퓨트 모듈 호출
 module "compute" {
   source    = "./modules/compute"
@@ -156,6 +181,10 @@ module "compute" {
   review_photos_bucket_arn      = module.storage.review_photos_bucket_arn
   review_photos_bucket_domain   = module.storage.review_photos_bucket_regional_domain
   review_moderation_lambda_name = module.review_moderation.function_name
+  review_moderation_queue_url   = module.review_pipeline.queue_url
+  review_moderation_queue_arn   = module.review_pipeline.queue_arn
+  quarantine_bucket_name        = module.storage.quarantine_bucket_name
+  quarantine_bucket_arn         = module.storage.quarantine_bucket_arn
 
   # 기타 변수
   region_name    = var.region_name
