@@ -1,9 +1,3 @@
-data "archive_file" "notifier" {
-  type        = "zip"
-  source_dir  = "${path.module}/src/notifier"
-  output_path = "${path.module}/build/product-change-notifier.zip"
-}
-
 resource "aws_sns_topic" "product_changes" {
   name = "${var.region_name}-product-changes"
 }
@@ -15,47 +9,125 @@ resource "aws_sns_topic_subscription" "admin_email" {
   endpoint  = var.admin_email
 }
 
-resource "aws_iam_role" "notifier" {
-  name = "${var.region_name}-product-change-notifier-role"
+
+########################################
+# EventBridge Pipe IAM Role
+########################################
+
+resource "aws_iam_role" "product_changes_pipe" {
+  name = "${var.region_name}-product-changes-pipe-role"
+
   assume_role_policy = jsonencode({
-    Version   = "2012-10-17"
-    Statement = [{ Effect = "Allow", Action = "sts:AssumeRole", Principal = { Service = "lambda.amazonaws.com" } }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "logs" {
-  role       = aws_iam_role.notifier.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-resource "aws_iam_role_policy" "notifier" {
-  name = "${var.region_name}-product-change-notifier-policy"
-  role = aws_iam_role.notifier.id
-  policy = jsonencode({
     Version = "2012-10-17"
+
     Statement = [
-      { Effect = "Allow", Action = ["dynamodb:GetRecords", "dynamodb:GetShardIterator", "dynamodb:DescribeStream"], Resource = var.product_table_stream_arn },
-      { Effect = "Allow", Action = ["dynamodb:ListStreams"], Resource = "*" },
-      { Effect = "Allow", Action = ["sns:Publish"], Resource = aws_sns_topic.product_changes.arn }
+      {
+        Effect = "Allow"
+
+        Principal = {
+          Service = "pipes.amazonaws.com"
+        }
+
+        Action = "sts:AssumeRole"
+      }
     ]
   })
 }
 
-resource "aws_lambda_function" "notifier" {
-  function_name    = "${var.region_name}-product-change-notifier"
-  role             = aws_iam_role.notifier.arn
-  handler          = "index.handler"
-  runtime          = "nodejs20.x"
-  timeout          = 15
-  filename         = data.archive_file.notifier.output_path
-  source_code_hash = data.archive_file.notifier.output_base64sha256
 
-  environment { variables = { TOPIC_ARN = aws_sns_topic.product_changes.arn } }
+resource "aws_iam_role_policy" "product_changes_pipe" {
+  name = "${var.region_name}-product-changes-pipe-policy"
+
+  role = aws_iam_role.product_changes_pipe.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "dynamodb:DescribeStream",
+          "dynamodb:GetRecords",
+          "dynamodb:GetShardIterator",
+          "dynamodb:ListStreams"
+        ]
+
+        Resource = [
+          var.product_table_stream_arn
+        ]
+      },
+
+      {
+        Effect = "Allow"
+
+        Action = [
+          "sns:Publish"
+        ]
+
+        Resource = aws_sns_topic.product_changes.arn
+      }
+    ]
+  })
 }
 
-resource "aws_lambda_event_source_mapping" "product_changes" {
-  event_source_arn  = var.product_table_stream_arn
-  function_name     = aws_lambda_function.notifier.arn
-  starting_position = "LATEST"
-  batch_size        = 10
+
+########################################
+# EventBridge Pipe
+########################################
+
+resource "aws_pipes_pipe" "product_changes" {
+
+  name = "${var.region_name}-product-changes-pipe"
+
+  role_arn = aws_iam_role.product_changes_pipe.arn
+
+
+  source = var.product_table_stream_arn
+
+  target = aws_sns_topic.product_changes.arn
+
+
+  source_parameters {
+
+    dynamodb_stream_parameters {
+
+      starting_position = "LATEST"
+
+      batch_size = 10
+    }
+
+
+    # 상품 변경 이벤트만 전달
+    filter_criteria {
+
+      filter {
+
+        pattern = jsonencode({
+
+          eventName = [
+            "INSERT",
+            "MODIFY",
+            "REMOVE"
+          ]
+
+        })
+      }
+    }
+  }
+
+
+  target_parameters {
+
+    input_template = jsonencode({
+
+      eventType = "<$.eventName>"
+
+      productId = "<$.dynamodb.Keys.productId.S>"
+
+      changedAt = "<aws.pipes.event.ingestion-time>"
+
+    })
+  }
 }
