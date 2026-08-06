@@ -31,8 +31,10 @@ resource "aws_iam_role" "github_actions_role" {
       }
       Condition = {
         StringLike = {
-            "token.actions.githubusercontent.com:sub":
-            "repo:JWH/testDambda:*"
+          "token.actions.githubusercontent.com:sub" = [
+            "repo:wjeong0530@278609285/github-actions-test@1308447274:ref:refs/heads/main",
+            "repo:wjeong0530@278609285/github-actions-test@1308447274:pull_request"
+          ]
         }
       }
     }]
