@@ -144,6 +144,16 @@ variable "review_moderation_lambda_name" {
   type    = string
   default = ""
 }
+variable "review_moderation_queue_arn" {
+  type    = string
+  default = ""
+}
+
+variable "quarantine_bucket_arn" {
+  description = "Quarantine S3 bucket ARN"
+  type        = string
+  default     = ""
+}
 
 variable "bedrock_model_id" {
   description = "상품 Q&A(backend/src/services/bedrock.js)에 쓸 Bedrock 모델/추론 프로파일 ID. 콘솔에서 Nova 모델 액세스를 먼저 활성화해야 하고, 리전에 따라 온디맨드 직접 호출 대신 cross-region inference profile ID(예: apac.*)가 필요할 수 있어 실제 값은 콘솔에서 확인 후 조정 필요"

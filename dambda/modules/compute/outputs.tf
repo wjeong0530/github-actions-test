@@ -21,3 +21,4 @@ output "task_definition_arn" {
   description = "최신 배포된 작업 정의 ARN"
   value       = aws_ecs_task_definition.main.arn
 }
+
