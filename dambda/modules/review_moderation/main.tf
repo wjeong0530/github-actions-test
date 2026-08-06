@@ -48,6 +48,21 @@ resource "aws_iam_role_policy" "review_moderation_permissions" {
         Resource = "*"
       },
       {
+        # DetectToxicContent가 영어만 지원해서 Comprehend에 넣기 전에 Translate로 영어화함 -
+        # Translate도 리소스 수준 권한 미지원이라 Resource "*"
+        Action   = ["translate:TranslateText"]
+        Effect   = "Allow"
+        Resource = "*"
+      },
+      {
+        # Translate가 SourceLanguageCode: 'auto'일 때 내부적으로 Comprehend의
+        # DetectDominantLanguage를 호출해서 언어를 판별함(DetectToxicContent와는 별개 액션) -
+        # 이게 없으면 AccessDeniedException으로 번역 자체가 막힘. ap-northeast-2에서 정상 지원됨
+        Action   = ["comprehend:DetectDominantLanguage"]
+        Effect   = "Allow"
+        Resource = "*"
+      },
+      {
         # DetectModerationLabels를 Image.S3Object로 호출하면 Rekognition이 호출자(이 Lambda
         # 역할)의 권한으로 S3를 읽음 - 서비스 자체 권한이 아니라서 이게 없으면 AccessDenied
         Action   = ["s3:GetObject"]
@@ -65,7 +80,8 @@ resource "aws_lambda_function" "review_moderation" {
   runtime          = "nodejs20.x"
   filename         = data.archive_file.review_moderation.output_path
   source_code_hash = data.archive_file.review_moderation.output_base64sha256
-  timeout          = 15
+  # Translate -> Comprehend가 순차 호출(체인)이라 15s는 빠듯함 - 여유를 둠
+  timeout = 20
 
   tags = { Name = "${var.region_name}-review-moderation" }
 }

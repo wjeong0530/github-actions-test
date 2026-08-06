@@ -402,6 +402,36 @@ abstract class AppLocalizations {
   /// **'리뷰 등록'**
   String get submitReview;
 
+  /// No description provided for @askAiTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI에게 물어보기'**
+  String get askAiTitle;
+
+  /// No description provided for @askAiHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'이 상품에 대해 궁금한 걸 물어보세요'**
+  String get askAiHint;
+
+  /// No description provided for @askAiButton.
+  ///
+  /// In ko, this message translates to:
+  /// **'물어보기'**
+  String get askAiButton;
+
+  /// No description provided for @askAiFinderTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI로 찾기'**
+  String get askAiFinderTitle;
+
+  /// No description provided for @askAiFinderHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'필요한 걸 설명하면 상품을 찾아드려요'**
+  String get askAiFinderHint;
+
   /// No description provided for @updateReview.
   ///
   /// In ko, this message translates to:

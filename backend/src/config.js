@@ -10,4 +10,6 @@ module.exports = {
   reviewPhotosBucket: process.env.S3_REVIEW_PHOTOS_BUCKET,
   reviewPhotosDomain: process.env.S3_REVIEW_PHOTOS_DOMAIN,
   moderationLambdaName: process.env.MODERATION_LAMBDA_NAME,
+  bedrockModelId: process.env.BEDROCK_MODEL_ID,
+  tavilyApiKey: process.env.TAVILY_API_KEY,
 };

@@ -181,10 +181,8 @@ module "compute" {
   review_photos_bucket_arn      = module.storage.review_photos_bucket_arn
   review_photos_bucket_domain   = module.storage.review_photos_bucket_regional_domain
   review_moderation_lambda_name = module.review_moderation.function_name
-  review_moderation_queue_url   = module.review_pipeline.queue_url
-  review_moderation_queue_arn   = module.review_pipeline.queue_arn
-  quarantine_bucket_name        = module.storage.quarantine_bucket_name
-  quarantine_bucket_arn         = module.storage.quarantine_bucket_arn
+  bedrock_model_id              = var.bedrock_model_id
+  tavily_api_key                = var.tavily_api_key
 
   # 기타 변수
   region_name    = var.region_name

@@ -75,8 +75,20 @@ variable "us_private_subnets" {
   default     = ["10.1.10.0/24", "10.1.11.0/24"]
 }
 
-variable "admin_notification_email" {
-  description = "Email address that receives product create, update, and delete notifications. Leave empty to create only the SNS topic."
+# 상품 Q&A(backend/src/services/bedrock.js)용. ap-northeast-2에서 Nova 온디맨드 직접 호출이
+# 안 되면 apac 크로스리전 추론 프로파일 ID로 바꿔야 함 - Bedrock 콘솔의 Model access에서
+# Nova 모델 액세스를 먼저 켜야 하고, 실제 사용 가능한 ID도 거기서 확인 필요
+variable "bedrock_model_id" {
+  description = "상품 Q&A에 쓸 Bedrock Nova 모델/추론 프로파일 ID"
+  type        = string
+  default     = "apac.amazon.nova-micro-v1:0"
+}
+
+# GitHub Actions 시크릿(TAVILY_API_KEY) -> TF_VAR_tavily_api_key로 주입됨 (terraform.yml 참고).
+# 로컬 tfvars에는 절대 평문으로 안 넣음 - CI 환경변수로만 전달
+variable "tavily_api_key" {
+  description = "웹검색 tool-use용 Tavily API 키 (없으면 web_search 기능 비활성화)"
   type        = string
   default     = ""
+  sensitive   = true
 }

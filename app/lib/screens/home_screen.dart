@@ -46,6 +46,7 @@ class HomeScreen extends StatelessWidget {
                     // 모바일 앱은 웹에서만 안내(웹 배포 산출물에 같이 올라가는 APK를 내려받는 링크라
                     // 앱 안에서 또 이걸 보여줄 이유가 없음)
                     if (kIsWeb) _DownloadAppBanner(),
+                    _AiFinderSection(),
                     _RecommendationBanner(),
                   ],
                 );
@@ -82,6 +83,52 @@ class _ProductsError extends StatelessWidget {
             child: Text(retryLabel),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// 인라인 검색창이 아니라 전용 채팅 화면(ChatScreen)으로 진입하는 배너 - 대화 상태는
+// state/chat_state.dart의 전역 싱글턴(chatState)이 들고 있어서 이 화면을 나갔다 와도 안 끊김
+class _AiFinderSection extends StatelessWidget {
+  const _AiFinderSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return InkWell(
+      onTap: () => openChat(context),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.auto_awesome, size: 20, color: AppColors.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.askAiFinderTitle,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    l10n.askAiFinderHint,
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+          ],
+        ),
       ),
     );
   }

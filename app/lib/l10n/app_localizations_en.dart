@@ -164,5 +164,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get submitReview => 'Submit Review';
 
   @override
+  String get askAiTitle => 'Ask AI';
+
+  @override
+  String get askAiHint => 'Ask anything about this product';
+
+  @override
+  String get askAiButton => 'Ask';
+
+  @override
+  String get askAiFinderTitle => 'Find with AI';
+
+  @override
+  String get askAiFinderHint => 'Describe what you need and we\'ll find it';
+
+  @override
   String get updateReview => 'Update Review';
 }

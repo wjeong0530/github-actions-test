@@ -9,11 +9,11 @@ locals {
 
 # 1. GitHub OIDC Provider 등록
 resource "aws_iam_openid_connect_provider" "github_actions" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
   thumbprint_list = [
-  "6938fd4d98bab03faadb97b34396831e3780aea1",
-  "1c58a3a8518e8759bf075b76b750d4f2df264fcd"
+    "6938fd4d98bab03faadb97b34396831e3780aea1",
+    "1c58a3a8518e8759bf075b76b750d4f2df264fcd"
   ]
 }
 
@@ -32,8 +32,8 @@ resource "aws_iam_role" "github_actions_role" {
       Condition = {
         StringLike = {
           "token.actions.githubusercontent.com:sub" = [
-            "repo:wjeong0530@278609285/github-actions-test@1308447274:ref:refs/heads/main",
-            "repo:wjeong0530@278609285/github-actions-test@1308447274:pull_request"
+            "repo:ahowme12@80324068/github-actions-test@1308447274:ref:refs/heads/main",
+            "repo:ahowme12@80324068/github-actions-test@1308447274:pull_request"
           ]
         }
       }
@@ -123,6 +123,18 @@ resource "aws_iam_policy" "core" {
         Condition = {
           StringEquals = {
             "iam:AWSServiceName" = "replication.dynamodb.amazonaws.com"
+          }
+        }
+      },
+      {
+        # aws_ecr_replication_configuration이 최초 활성화 시 AWS가 자동 생성하는 서비스연결역할
+        Sid      = "IamServiceLinkedRoleForEcrReplication"
+        Effect   = "Allow"
+        Action   = ["iam:CreateServiceLinkedRole"]
+        Resource = ["arn:aws:iam::${local.account_id}:role/aws-service-role/replication.ecr.amazonaws.com/AWSServiceRoleForECRReplication"]
+        Condition = {
+          StringEquals = {
+            "iam:AWSServiceName" = "replication.ecr.amazonaws.com"
           }
         }
       }
@@ -402,7 +414,10 @@ resource "aws_iam_policy" "compute" {
           "ecr:BatchCheckLayerAvailability", "ecr:InitiateLayerUpload", "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload", "ecr:PutImage", "ecr:BatchGetImage"
         ]
-        Resource = ["arn:aws:ecr:ap-northeast-2:${local.account_id}:repository/${local.app_name_prefix}-*"]
+        Resource = [
+          "arn:aws:ecr:ap-northeast-2:${local.account_id}:repository/${local.app_name_prefix}-*",
+          "arn:aws:ecr:us-east-1:${local.account_id}:repository/${local.app_name_prefix}-*"
+        ]
       },
       {
         # docker login 시 계정 단위로 인증 토큰을 받는 액션이라 리소스 단위 스코프 자체를
@@ -410,6 +425,35 @@ resource "aws_iam_policy" "compute" {
         Sid      = "EcrAuthToken"
         Effect   = "Allow"
         Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        # ECR 네이티브 리플리케이션(서울->us-east-1 자동 이미지 복제) 설정. 레지스트리
+        # 단위(계정 전체) 설정이라 리소스 단위 스코프 자체를 지원 안 함
+        Sid      = "EcrReplicationConfig"
+        Effect   = "Allow"
+        Action   = ["ecr:PutReplicationConfiguration", "ecr:DescribeRegistry"]
+        Resource = "*"
+      },
+      {
+        # compute 모듈: Tavily API 키(SecureString) 파라미터 관리. Terraform이 apply 후
+        # 상태를 읽어올 때는 GetParameter(단수), ECS가 컨테이너 시작 시 값을 주입할 때는
+        # GetParameters(복수) - 액션 이름이 비슷해도 서로 다른 액션이라 둘 다 필요
+        Sid    = "SsmTavilyApiKey"
+        Effect = "Allow"
+        Action = [
+          "ssm:PutParameter", "ssm:DeleteParameter",
+          "ssm:GetParameter", "ssm:GetParameters",
+          "ssm:AddTagsToResource", "ssm:RemoveTagsFromResource", "ssm:ListTagsForResource"
+        ]
+        Resource = ["arn:aws:ssm:*:${local.account_id}:parameter/${local.app_name_prefix}/*"]
+      },
+      {
+        # DescribeParameters는 "목록 조회" 액션이라 AWS가 리소스 단위 스코프 자체를 지원 안 함
+        # (logs:DescribeLogGroups와 동일한 이유) - Terraform이 apply 후 drift 확인 시 호출함
+        Sid      = "SsmDescribeParameters"
+        Effect   = "Allow"
+        Action   = ["ssm:DescribeParameters"]
         Resource = "*"
       },
       {
