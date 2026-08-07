@@ -121,7 +121,6 @@ module "review_pipeline" {
   region_name                  = var.region_name
   review_table_name            = module.dynamodb.product_reviews_table_name
   review_table_arn             = module.dynamodb.product_reviews_table_arn
-  review_table_stream_arn      = module.dynamodb.product_reviews_table_stream_arn
   moderation_events_table_name = module.dynamodb.moderation_events_table_name
   moderation_events_table_arn  = module.dynamodb.moderation_events_table_arn
   quarantine_bucket_name       = module.storage.quarantine_bucket_name
