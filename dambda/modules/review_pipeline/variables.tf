@@ -17,3 +17,8 @@ variable "image_confidence_threshold" {
   type    = number
   default = 70
 }
+
+variable "review_table_stream_arn" {
+  type        = string
+  description = "DynamoDB Stream ARN for product reviews table"
+}

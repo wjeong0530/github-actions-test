@@ -133,6 +133,16 @@ resource "aws_iam_role_policy" "pipe" {
     Statement = [
       { Effect = "Allow", Action = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"], Resource = aws_sqs_queue.review_moderation.arn },
       { Effect = "Allow", Action = ["states:StartExecution"], Resource = aws_sfn_state_machine.review_moderation.arn }
+      { 
+        Effect = "Allow", 
+        Action = [
+          "dynamodb:GetRecords",
+          "dynamodb:GetShardIterator",
+          "dynamodb:DescribeStream",
+          "dynamodb:ListStreams"
+        ], 
+        Resource = var.review_table_stream_arn 
+      }
     ]
   })
 }
