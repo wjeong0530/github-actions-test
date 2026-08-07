@@ -11,24 +11,51 @@ const rekognition = new RekognitionClient({});
 const s3 = new S3Client({});
 const dynamodb = new DynamoDBClient({});
 
+// EventBridge Pipe(batch_size=1)가 Step Functions에 넘기는 입력은 SQS 레코드 "배열"이고
+// (레코드가 1개여도 배열임), Step Functions는 그걸 Payload.$: "$"로 그대로 Lambda에 넘김 -
+// 그래서 여기서 받는 input은 레코드 객체가 아니라 [record] 형태임. 배열을 안 풀면
+// record.body가 undefined라 아래 JSON.parse 분기를 타지 않고 배열 자체가 review로 취급돼서
+// userId/productId/text가 전부 없는 것처럼 보여 "Invalid review moderation message"로 실패함
 function message(input) {
   const record = Array.isArray(input) ? input[0] : input;
   return typeof record.body === 'string' ? JSON.parse(record.body) : record;
 }
 
+// DetectToxicContent는 영어만 지원하고, SourceLanguageCode: 'auto'는 내부적으로
+// comprehend:DetectDominantLanguage를 호출함 - 짧거나 애매한 텍스트("hi", 자모 하나 등)는
+// 신뢰도가 낮아 DetectedLanguageLowConfidenceException을 던지므로, 예외에 실려오는 감지
+// 언어로 한 번 더 시도함(review_moderation Lambda와 동일 이슈/동일 해법)
+async function translateToEnglish(text) {
+  try {
+    const result = await translate.send(new TranslateTextCommand({
+      Text: text,
+      SourceLanguageCode: 'auto',
+      TargetLanguageCode: 'en',
+    }));
+    return result.TranslatedText;
+  } catch (err) {
+    if (err.name === 'DetectedLanguageLowConfidenceException' && err.DetectedLanguageCode) {
+      if (err.DetectedLanguageCode === 'en') return text;
+      const retry = await translate.send(new TranslateTextCommand({
+        Text: text,
+        SourceLanguageCode: err.DetectedLanguageCode,
+        TargetLanguageCode: 'en',
+      }));
+      return retry.TranslatedText;
+    }
+    throw err;
+  }
+}
+
 async function textResult(text) {
-  const translated = await translate.send(new TranslateTextCommand({
-    Text: text,
-    SourceLanguageCode: 'auto',
-    TargetLanguageCode: 'en',
-  }));
+  const translatedText = await translateToEnglish(text);
   const result = await comprehend.send(new DetectToxicContentCommand({
     LanguageCode: 'en',
-    TextSegments: [{ Text: translated.TranslatedText }],
+    TextSegments: [{ Text: translatedText }],
   }));
   const labels = (result.ResultList || []).flatMap((segment) => segment.Labels || []);
   const threshold = Number(process.env.TOXICITY_THRESHOLD);
-  return { translatedText: translated.TranslatedText, sourceLanguage: translated.SourceLanguageCode, labels, blocked: labels.some((label) => label.Score >= threshold) };
+  return { translatedText, labels, blocked: labels.some((label) => label.Score >= threshold) };
 }
 
 async function imageResult(photoKey) {
