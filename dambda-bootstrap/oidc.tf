@@ -560,6 +560,7 @@ resource "aws_iam_policy" "compute" {
           "states:UpdateStateMachine",
           "states:DescribeStateMachine",
           "states:ListStateMachines",
+          "states:ListStateMachineVersions",
           "states:ValidateStateMachineDefinition",
           "states:TagResource",
           "states:UntagResource",

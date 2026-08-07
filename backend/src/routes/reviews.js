@@ -3,8 +3,6 @@ const multer = require('multer');
 const reviews = require('../services/reviews');
 const dynamodb = require('../services/dynamodb');
 const s3 = require('../services/s3');
-const lambda = require('../services/lambda');
-const reviewQueue = require('../services/reviewQueue');
 const translate = require('../services/translate');
 const authenticate = require('../middleware/authenticate');
 const asyncHandler = require('../middleware/asyncHandler');
@@ -120,14 +118,6 @@ router.post('/', authenticate, handleUpload, asyncHandler(async (req, res) => {
     return res.status(500).json({ error: 'failed to save review' });
   }
 
-  try {
-    await reviewQueue.enqueueReview(review);
-  } catch (err) {
-    // Queue 발행에 실패하면 처리되지 않을 PENDING 리뷰와 격리 이미지를 함께 롤백한다.
-    await reviews.deleteReview(review.userId, review.productId).catch(() => {});
-    if (photo) await s3.deleteQuarantinePhoto(photo.key).catch(() => {});
-    return res.status(503).json({ error: 'moderation_queue_unavailable' });
-  }
 
   res.status(201).json(review);
 }));
@@ -149,47 +139,55 @@ router.put('/', authenticate, handleUpload, asyncHandler(async (req, res) => {
 
   let photo;
   if (req.file) {
-    photo = await s3.uploadReviewPhoto(req.file.buffer, req.file.mimetype);
+    photo = await s3.uploadQuarantinePhoto(
+      req.file.buffer,
+      req.file.mimetype
+    );
   }
-  // 새 사진을 올렸거나 명시적으로 제거를 요청한 경우에만 기존 사진을 나중에 지움 -
-  // 둘 다 아니면(그냥 별점/텍스트만 수정) 기존 사진은 그대로 둠
-  const shouldDeleteOldPhoto = !!existing.photoKey && (!!photo || removePhoto);
 
-  // 검열은 바뀐 것만 다시 확인 - 텍스트는 항상, 이미지는 새로 첨부했을 때만
-  // (안 바뀐 기존 사진을 매번 재검열하지 않음)
-  const moderation = await lambda.invokeModeration({
-    text,
-    imageBucket: photo?.bucket,
-    imageKey: photo?.key,
-  });
-
-  if (!moderation.approved) {
-    if (photo) await s3.deleteReviewPhoto(photo.key).catch(() => {});
-    return res.status(422).json({ error: 'content_rejected', reasons: moderation.reasons });
-  }
+  // 새 사진을 올렸거나 명시적으로 제거를 요청한 경우에만 기존 사진을 나중에 삭제
+  const shouldDeleteOldPhoto =
+    !!existing.photoKey && (!!photo || removePhoto);
 
   const updated = {
     ...existing,
     rating,
     text,
-    photoUrl: photo ? photo.url : removePhoto ? null : existing.photoUrl,
+    photoUrl: photo ? null : removePhoto ? null : existing.photoUrl,
     photoKey: photo ? photo.key : removePhoto ? null : existing.photoKey,
+
+    // 수정된 리뷰도 다시 검열 대상
+    moderationStatus: 'PENDING',
+    isVisible: false,
+
     updatedAt: new Date().toISOString(),
   };
 
   try {
     await reviews.updateReview(updated);
   } catch (err) {
-    if (photo) await s3.deleteReviewPhoto(photo.key).catch(() => {});
-    return res.status(500).json({ error: 'failed to update review' });
+    if (photo) {
+      await s3.deleteQuarantinePhoto(photo.key).catch(() => {});
+    }
+
+    return res.status(500).json({
+      error: 'failed to update review'
+    });
   }
 
+  // 새 사진으로 교체하거나 사진을 제거한 경우 기존 사진 삭제
   if (shouldDeleteOldPhoto) {
-    await s3.deleteReviewPhoto(existing.photoKey).catch(() => {});
+    const deleteOldPhoto =
+      ['PENDING', 'REVIEW_REQUIRED'].includes(existing.moderationStatus)
+        ? s3.deleteQuarantinePhoto
+        : s3.deleteReviewPhoto;
+
+    await deleteOldPhoto(existing.photoKey).catch(() => {});
   }
 
   res.status(200).json(updated);
 }));
+
 
 router.delete('/', authenticate, asyncHandler(async (req, res) => {
   const productId = req.params.productId;
