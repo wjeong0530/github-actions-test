@@ -41,7 +41,7 @@ resource "aws_iam_role_policy" "worker" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Effect = "Allow", Action = ["translate:TranslateText", "comprehend:DetectToxicContent", "rekognition:DetectModerationLabels"], Resource = "*" },
+      { Effect = "Allow", Action = ["translate:TranslateText", "comprehend:DetectToxicContent", "comprehend:DetectDominantLanguage", "rekognition:DetectModerationLabels"], Resource = "*" },
       { Effect = "Allow", Action = ["s3:GetObject", "s3:DeleteObject"], Resource = "${var.quarantine_bucket_arn}/*" },
       { Effect = "Allow", Action = ["s3:PutObject"], Resource = "${var.public_review_bucket_arn}/*" },
       { Effect = "Allow", Action = ["dynamodb:UpdateItem"], Resource = var.review_table_arn },
