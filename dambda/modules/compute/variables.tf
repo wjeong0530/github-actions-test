@@ -149,6 +149,16 @@ variable "review_moderation_queue_arn" {
   default = ""
 }
 
+variable "review_moderation_queue_url" {
+  type    = string
+  default = ""
+}
+
+variable "quarantine_bucket_name" {
+  type    = string
+  default = ""
+}
+
 variable "quarantine_bucket_arn" {
   description = "Quarantine S3 bucket ARN"
   type        = string

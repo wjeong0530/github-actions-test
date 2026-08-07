@@ -4,6 +4,7 @@ const reviews = require('../services/reviews');
 const dynamodb = require('../services/dynamodb');
 const s3 = require('../services/s3');
 const lambda = require('../services/lambda');
+const reviewQueue = require('../services/reviewQueue');
 const translate = require('../services/translate');
 const authenticate = require('../middleware/authenticate');
 const asyncHandler = require('../middleware/asyncHandler');
@@ -93,18 +94,7 @@ router.post('/', authenticate, handleUpload, asyncHandler(async (req, res) => {
 
   let photo;
   if (req.file) {
-    photo = await s3.uploadReviewPhoto(req.file.buffer, req.file.mimetype);
-  }
-
-  const moderation = await lambda.invokeModeration({
-    text,
-    imageBucket: photo?.bucket,
-    imageKey: photo?.key,
-  });
-
-  if (!moderation.approved) {
-    if (photo) await s3.deleteReviewPhoto(photo.key).catch(() => {});
-    return res.status(422).json({ error: 'content_rejected', reasons: moderation.reasons });
+    photo = await s3.uploadQuarantinePhoto(req.file.buffer, req.file.mimetype);
   }
 
   const review = {
@@ -112,8 +102,10 @@ router.post('/', authenticate, handleUpload, asyncHandler(async (req, res) => {
     productId,
     rating,
     text,
-    photoUrl: photo?.url ?? null,
+    photoUrl: null,
     photoKey: photo?.key ?? null,
+    moderationStatus: 'PENDING',
+    isVisible: false,
     authorNickname,
     createdAt: new Date().toISOString(),
   };
@@ -121,11 +113,20 @@ router.post('/', authenticate, handleUpload, asyncHandler(async (req, res) => {
   try {
     await reviews.putReview(review);
   } catch (err) {
-    if (photo) await s3.deleteReviewPhoto(photo.key).catch(() => {});
+    if (photo) await s3.deleteQuarantinePhoto(photo.key).catch(() => {});
     if (err.name === 'ConditionalCheckFailedException') {
       return res.status(409).json({ error: 'already reviewed this product' });
     }
     return res.status(500).json({ error: 'failed to save review' });
+  }
+
+  try {
+    await reviewQueue.enqueueReview(review);
+  } catch (err) {
+    // Queue 발행에 실패하면 처리되지 않을 PENDING 리뷰와 격리 이미지를 함께 롤백한다.
+    await reviews.deleteReview(review.userId, review.productId).catch(() => {});
+    if (photo) await s3.deleteQuarantinePhoto(photo.key).catch(() => {});
+    return res.status(503).json({ error: 'moderation_queue_unavailable' });
   }
 
   res.status(201).json(review);
@@ -199,7 +200,10 @@ router.delete('/', authenticate, asyncHandler(async (req, res) => {
 
   await reviews.deleteReview(req.user.sub, productId);
   if (existing.photoKey) {
-    await s3.deleteReviewPhoto(existing.photoKey).catch(() => {});
+    const deletePhoto = ['PENDING', 'REVIEW_REQUIRED'].includes(existing.moderationStatus)
+      ? s3.deleteQuarantinePhoto
+      : s3.deleteReviewPhoto;
+    await deletePhoto(existing.photoKey).catch(() => {});
   }
 
   res.status(204).send();

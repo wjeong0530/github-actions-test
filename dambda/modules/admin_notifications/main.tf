@@ -124,7 +124,7 @@ resource "aws_pipes_pipe" "product_changes" {
 
       eventType = "<$.eventName>"
 
-      productId = "<$.dynamodb.Keys.productId.S>"
+      productId = "<$.dynamodb.Keys.itemId.S>"
 
       changedAt = "<aws.pipes.event.ingestion-time>"
 

@@ -12,7 +12,8 @@ const s3 = new S3Client({});
 const dynamodb = new DynamoDBClient({});
 
 function message(input) {
-  return typeof input.body === 'string' ? JSON.parse(input.body) : input;
+  const record = Array.isArray(input) ? input[0] : input;
+  return typeof record.body === 'string' ? JSON.parse(record.body) : record;
 }
 
 async function textResult(text) {

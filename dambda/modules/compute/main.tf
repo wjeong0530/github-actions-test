@@ -274,6 +274,11 @@ locals {
         { name = "S3_REVIEW_PHOTOS_BUCKET", value = var.review_photos_bucket_name },
         { name = "S3_REVIEW_PHOTOS_DOMAIN", value = var.review_photos_bucket_domain },
         { name = "MODERATION_LAMBDA_NAME", value = var.review_moderation_lambda_name },
+<<<<<<< HEAD
+=======
+        { name = "REVIEW_MODERATION_QUEUE_URL", value = var.review_moderation_queue_url },
+        { name = "S3_QUARANTINE_BUCKET", value = var.quarantine_bucket_name },
+>>>>>>> 4107f5caadcdd43309a8f3c9d7da05c3cfd35c28
         { name = "BEDROCK_MODEL_ID", value = var.bedrock_model_id },
       ]
       # SSM SecureString - 평문 환경변수(environment)가 아니라 여기로 넣어야 task definition을

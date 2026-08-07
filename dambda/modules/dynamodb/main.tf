@@ -104,7 +104,7 @@ resource "aws_dynamodb_table" "translations" {
 
 # ===================== 상품/리뷰 백엔드(backend/)용 테이블 =====================
 # users(pk=user_id)를 재사용하지 않는 이유: backend 코드가 pk로 "userId"(카멜케이스)를
-# 하드코딩하고 있어 키 속성명이 달라 스키마 자체가 안 맞음. 별도 테이블로 분리.
+# 하드코딩하고 있어 키dd 속성명이 달라 스키마 자체가 안 맞음. 별도 테이블로 분리.
 
 # 회원 프로필 (닉네임/국가 등, 비밀번호는 저장 안 함 - Cognito가 자격증명 전담)
 resource "aws_dynamodb_table" "user_profiles" {

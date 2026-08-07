@@ -189,7 +189,9 @@ module "compute" {
   aws_region     = var.aws_region
   container_port = var.container_port
 
-  # 관리자 페이지 알림용 이메일
+  # 비동기 리뷰 검수 큐
   review_moderation_queue_arn = module.review_pipeline.queue_arn
+  review_moderation_queue_url = module.review_pipeline.queue_url
   quarantine_bucket_arn       = module.storage.quarantine_bucket_arn
+  quarantine_bucket_name      = module.storage.quarantine_bucket_name
 }

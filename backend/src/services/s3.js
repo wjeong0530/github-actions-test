@@ -27,6 +27,19 @@ async function uploadReviewPhoto(buffer, mimeType) {
   };
 }
 
+async function uploadQuarantinePhoto(buffer, mimeType) {
+  const key = `reviews/${crypto.randomUUID()}.${extensionFor(mimeType)}`;
+  await client.send(
+    new PutObjectCommand({
+      Bucket: config.quarantineBucket,
+      Key: key,
+      Body: buffer,
+      ContentType: mimeType,
+    })
+  );
+  return { key };
+}
+
 async function deleteReviewPhoto(key) {
   await client.send(
     new DeleteObjectCommand({
@@ -36,4 +49,18 @@ async function deleteReviewPhoto(key) {
   );
 }
 
-module.exports = { uploadReviewPhoto, deleteReviewPhoto };
+async function deleteQuarantinePhoto(key) {
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: config.quarantineBucket,
+      Key: key,
+    })
+  );
+}
+
+module.exports = {
+  uploadReviewPhoto,
+  uploadQuarantinePhoto,
+  deleteReviewPhoto,
+  deleteQuarantinePhoto,
+};
