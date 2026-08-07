@@ -50,6 +50,11 @@ output "product_reviews_table_arn" {
   value       = aws_dynamodb_table.product_reviews.arn
 }
 
+output "product_reviews_table_stream_arn" {
+  description = "ARN of the DynamoDB Stream for product reviews table"
+  value       = aws_dynamodb_table.product_reviews.stream_arn
+}
+
 output "product_catalog_table_name" {
   value = aws_dynamodb_table.product_catalog.name
 }
