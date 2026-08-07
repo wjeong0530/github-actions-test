@@ -132,7 +132,7 @@ resource "aws_iam_role_policy" "pipe" {
     Version = "2012-10-17"
     Statement = [
       { Effect = "Allow", Action = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"], Resource = aws_sqs_queue.review_moderation.arn },
-      { Effect = "Allow", Action = ["states:StartExecution"], Resource = aws_sfn_state_machine.review_moderation.arn }
+      { Effect = "Allow", Action = ["states:StartExecution"], Resource = aws_sfn_state_machine.review_moderation.arn },
       { 
         Effect = "Allow", 
         Action = [
