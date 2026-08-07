@@ -183,7 +183,9 @@ resource "aws_iam_policy" "data" {
           "s3:GetBucketWebsite",
           "s3:GetBucketPublicAccessBlock",
           "s3:GetEncryptionConfiguration",
-          "s3:GetLifecycleConfiguration"
+          "s3:PutEncryptionConfiguration",
+          "s3:GetLifecycleConfiguration",
+          "s3:PutLifecycleConfiguration"
         ]
         Resource = [
           "arn:aws:s3:::*",
@@ -528,6 +530,45 @@ resource "aws_iam_policy" "compute" {
         ]
         Resource = [
           "arn:aws:sns:*:${local.account_id}:${local.app_name_prefix}-*"
+        ]
+      },
+      {
+        Sid    = "EventBridgePipesManagement"
+        Effect = "Allow"
+        Action = [
+          "pipes:CreatePipe",
+          "pipes:UpdatePipe",
+          "pipes:DeletePipe",
+          "pipes:DescribePipe",
+          "pipes:ListPipes",
+          "pipes:StartPipe",
+          "pipes:StopPipe",
+          "pipes:TagResource",
+          "pipes:UntagResource",
+          "pipes:ListTagsForResource"
+        ]
+        Resource = [
+          "arn:aws:pipes:*:${local.account_id}:pipe/${local.app_name_prefix}-*"
+        ]
+      },
+      {
+        Sid    = "StepFunctionsManagement"
+        Effect = "Allow"
+        Action = [
+          "states:CreateStateMachine",
+          "states:DeleteStateMachine",
+          "states:UpdateStateMachine",
+          "states:DescribeStateMachine",
+          "states:ListStateMachines",
+          "states:ValidateStateMachineDefinition",
+          "states:TagResource",
+          "states:UntagResource",
+          "states:ListTagsForResource"
+        ]
+        Resource = [
+          "arn:aws:states:*:${local.account_id}:stateMachine:${local.app_name_prefix}-*",
+          # ValidateStateMachineDefinition API는 생성 전 검증용이라 wildcard(*) 지정이 필요한 경우가 많습니다.
+          "arn:aws:states:*:${local.account_id}:stateMachine:*"
         ]
       }
     ]
