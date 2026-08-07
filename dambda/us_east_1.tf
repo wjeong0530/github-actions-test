@@ -110,4 +110,6 @@ module "compute_us" {
   desired_count            = 0
   autoscaling_min_capacity = 0
   autoscaling_max_capacity = 5
+
+  review_moderation_queue_arn = module.review_pipeline.queue_arn
 }
