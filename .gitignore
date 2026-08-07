@@ -1,0 +1,23 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# 실제 값 파일은 나중에 비밀값이 섞일 수 있어 커밋 안 함, *.tfvars.example만 추적
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# npm install 후 로컬 생성되는 산출물 - 위치 상관없이 전부 차단 (backend/, lambda 소스 폴더 등)
+node_modules/
+
+# Lambda 빌드 산출물 (data.archive_file이 terraform plan/apply 시 자동 생성, 커밋 불필요)
+**/modules/**/build/
+
+# 로컬 백업용 zip - GitHub 100MB 제한을 넘어서 push가 막힘, 커밋 대상 아님
+*.zip

@@ -1,0 +1,98 @@
+name: Deploy Frontend to S3
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "app/**"
+      - ".github/workflows/deploy-frontend.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: frontend-production
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: ap-northeast-2
+  S3_BUCKET: my-app-dev-static-site-372898429829
+
+jobs:
+  deploy:
+    name: Build and sync
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-skip-session-tagging: true
+
+      # API Gateway 엔드포인트는 재생성될 때마다 서브도메인이 랜덤으로 바뀌어서
+      # 하드코딩하지 않고 매번 AWS에서 현재 값을 직접 조회함
+      - name: Look up API Gateway endpoint
+        id: api
+        run: |
+          ENDPOINT=$(aws apigatewayv2 get-apis \
+            --query "Items[?Name=='my-app-dev-api-gateway'].ApiEndpoint" \
+            --output text)
+          echo "base_url=$ENDPOINT" >> "$GITHUB_OUTPUT"
+
+      # 안드로이드 APK 빌드(Gradle)에 JDK 필요 - 웹 빌드만 하던 때는 없어도 됐음
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build web
+        working-directory: app
+        run: flutter build web --release --dart-define=API_BASE_URL=${{ steps.api.outputs.base_url }}
+
+      # 릴리즈 빌드가 디버그 서명 그대로라(android/app/build.gradle.kts 참고) 별도
+      # 키스토어 없이 바로 빌드됨 - 사이드로드 테스트용이지 스토어 배포용 아님
+      - name: Build Android APK
+        working-directory: app
+        run: flutter build apk --release --dart-define=API_BASE_URL=${{ steps.api.outputs.base_url }}
+
+      # 웹 빌드 산출물 안에 넣어서 같은 sync 스텝으로 같이 올라가게 함
+      - name: Place APK into web build output
+        run: |
+          mkdir -p app/build/web/downloads
+          cp app/build/app/outputs/flutter-apk/app-release.apk app/build/web/downloads/dambda.apk
+
+      - name: Sync to S3
+        run: |
+          aws s3 sync app/build/web "s3://$S3_BUCKET" --delete
+
+      # CloudFront가 예전 파일을 캐싱하고 있을 수 있어서, sync 후 무효화 안 하면
+      # 새로 배포해도 브라우저에 옛날 버전이 계속 보일 수 있음
+      - name: Invalidate CloudFront cache
+        run: |
+          DIST_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Origins.Items[0].DomainName=='$S3_BUCKET.s3.$AWS_REGION.amazonaws.com'].Id" \
+            --output text)
+          if [ -n "$DIST_ID" ] && [ "$DIST_ID" != "None" ]; then
+            aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
+          else
+            echo "CloudFront distribution을 못 찾음 (아직 terraform apply 전일 수 있음) - 무효화 건너뜀"
+          fi
