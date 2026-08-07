@@ -151,3 +151,31 @@ resource "aws_pipes_pipe" "review_moderation" {
     step_function_state_machine_parameters { invocation_type = "FIRE_AND_FORGET" }
   }
 }
+
+# DynamoDB Stream에서 SQS로 메시지를 넘겨주는 Pipe 추가
+resource "aws_pipes_pipe" "ddb_to_sqs" {
+  name     = "${var.region_name}-ddb-to-review-sqs-pipe"
+  role_arn = aws_iam_role.pipe.arn
+
+  # Source: DynamoDB 테이블 Stream
+  source = var.review_table_stream_arn
+
+  # Target: SQS 큐
+  target = aws_sqs_queue.review_moderation.arn
+
+  source_parameters {
+    dynamodb_stream_parameters {
+      starting_position = "LATEST"
+      batch_size        = 1
+    }
+
+    # (선택) INSERT(새로 추가된 리뷰) 이벤트만 SQS로 보낼 경우 필터링
+    filter_criteria {
+      filter {
+        pattern = jsonencode({
+          eventName = ["INSERT"]
+        })
+      }
+    }
+  }
+}
