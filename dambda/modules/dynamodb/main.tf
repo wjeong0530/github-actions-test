@@ -267,5 +267,8 @@ resource "aws_dynamodb_table" "moderation_events" {
     region_name = var.replica_region
   }
 
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  
   tags = { Name = "${var.region_name}-moderation-events" }
 }
