@@ -128,20 +128,58 @@ resource "aws_iam_role" "pipe" {
 resource "aws_iam_role_policy" "pipe" {
   name = "${var.region_name}-review-moderation-pipe-policy"
   role = aws_iam_role.pipe.id
+
   policy = jsonencode({
     Version = "2012-10-17"
+
     Statement = [
-      { Effect = "Allow", Action = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"], Resource = aws_sqs_queue.review_moderation.arn },
-      { Effect = "Allow", Action = ["states:StartExecution"], Resource = aws_sfn_state_machine.review_moderation.arn },
-      { 
-        Effect = "Allow", 
+      # SQS -> Step Functions Pipe
+      {
+        Effect = "Allow"
+
+        Action = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes"
+        ]
+
+        Resource = aws_sqs_queue.review_moderation.arn
+      },
+
+      # DynamoDB Stream -> SQS Pipe
+      {
+        Effect = "Allow"
+
+        Action = [
+          "sqs:SendMessage"
+        ]
+
+        Resource = aws_sqs_queue.review_moderation.arn
+      },
+
+      # DynamoDB Stream 읽기
+      {
+        Effect = "Allow"
+
         Action = [
           "dynamodb:GetRecords",
           "dynamodb:GetShardIterator",
           "dynamodb:DescribeStream",
           "dynamodb:ListStreams"
-        ], 
-        Resource = var.review_table_stream_arn 
+        ]
+
+        Resource = var.review_table_stream_arn
+      },
+
+      # SQS -> Step Functions Pipe
+      {
+        Effect = "Allow"
+
+        Action = [
+          "states:StartExecution"
+        ]
+
+        Resource = aws_sfn_state_machine.review_moderation.arn
       }
     ]
   })
