@@ -50,8 +50,7 @@ async function queryReviewsByProduct(productId) {
       TableName: config.productReviewsTableName,
       IndexName: 'product-reviews-by-product',
       KeyConditionExpression: 'productId = :p',
-      FilterExpression: 'isVisible = :visible',
-      ExpressionAttributeValues: { ':p': productId, ':visible': true },
+      ExpressionAttributeValues: { ':p': productId },
       ScanIndexForward: false,
     })
   );

@@ -60,8 +60,13 @@ function handleUpload(req, res, next) {
   });
 }
 
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/', optionalAuthenticate,asyncHandler(async (req, res) => {
   const items = await reviews.queryReviewsByProduct(req.params.productId);
+  const visible = items.filter((item) => item.isVisible !== false);
+   const ownPending = req.user
+    ? items.find((item) => item.userId === req.user.sub && item.isVisible === false)
+    : undefined;
+  const list = ownPending ? [ownPending, ...visible] : visible;
   const reviewCount = items.length;
   const averageRating = reviewCount === 0
     ? 0

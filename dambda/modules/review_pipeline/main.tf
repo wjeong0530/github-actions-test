@@ -133,54 +133,8 @@ resource "aws_iam_role_policy" "pipe" {
     Version = "2012-10-17"
 
     Statement = [
-      # SQS -> Step Functions Pipe
-      {
-        Effect = "Allow"
-
-        Action = [
-          "sqs:ReceiveMessage",
-          "sqs:DeleteMessage",
-          "sqs:GetQueueAttributes"
-        ]
-
-        Resource = aws_sqs_queue.review_moderation.arn
-      },
-
-      # DynamoDB Stream -> SQS Pipe
-      {
-        Effect = "Allow"
-
-        Action = [
-          "sqs:SendMessage"
-        ]
-
-        Resource = aws_sqs_queue.review_moderation.arn
-      },
-
-      # DynamoDB Stream 읽기
-      {
-        Effect = "Allow"
-
-        Action = [
-          "dynamodb:GetRecords",
-          "dynamodb:GetShardIterator",
-          "dynamodb:DescribeStream",
-          "dynamodb:ListStreams"
-        ]
-
-        Resource = var.review_table_stream_arn
-      },
-
-      # SQS -> Step Functions Pipe
-      {
-        Effect = "Allow"
-
-        Action = [
-          "states:StartExecution"
-        ]
-
-        Resource = aws_sfn_state_machine.review_moderation.arn
-      }
+      { Effect = "Allow", Action = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"], Resource = aws_sqs_queue.review_moderation.arn },
+      { Effect = "Allow", Action = ["states:StartExecution"], Resource = aws_sfn_state_machine.review_moderation.arn }
     ]
   })
 }
@@ -200,30 +154,3 @@ resource "aws_pipes_pipe" "review_moderation" {
   }
 }
 
-# DynamoDB Stream에서 SQS로 메시지를 넘겨주는 Pipe 추가
-resource "aws_pipes_pipe" "ddb_to_sqs" {
-  name     = "${var.region_name}-ddb-to-review-sqs-pipe"
-  role_arn = aws_iam_role.pipe.arn
-
-  # Source: DynamoDB 테이블 Stream
-  source = var.review_table_stream_arn
-
-  # Target: SQS 큐
-  target = aws_sqs_queue.review_moderation.arn
-
-  source_parameters {
-    dynamodb_stream_parameters {
-      starting_position = "LATEST"
-      batch_size        = 1
-    }
-
-    # (선택) INSERT(새로 추가된 리뷰) 이벤트만 SQS로 보낼 경우 필터링
-    filter_criteria {
-      filter {
-        pattern = jsonencode({
-          eventName = ["INSERT"]
-        })
-      }
-    }
-  }
-}
