@@ -21,6 +21,7 @@ resource "aws_iam_openid_connect_provider" "github_actions" {
 resource "aws_iam_role" "github_actions_role" {
   name = "github-actions-role"
 
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -85,7 +86,9 @@ resource "aws_iam_policy" "core" {
           "iam:ListAttachedRolePolicies",
           "iam:PassRole"
         ]
-        Resource = ["arn:aws:iam::${local.account_id}:role/${local.app_name_prefix}-*"]
+        Resource = [
+          "arn:aws:iam::${local.account_id}:role/*"
+        ]
       },
       {
         # compute 모듈의 ecs_task_policy처럼 role이 아닌 별도 관리형 정책 리소스
@@ -101,6 +104,17 @@ resource "aws_iam_policy" "core" {
           "iam:ListPolicyVersions"
         ]
         Resource = ["arn:aws:iam::${local.account_id}:policy/${local.app_name_prefix}-*"]
+      },
+      {
+        Sid = "DenySelfModification"
+        Effect = "Deny"
+        Action = [
+          "iam:UpdateAssumeRolePolicy",
+          "iam:DeleteRole",
+          "iam:AttachRolePolicy",
+          "iam:PutRolePolicy"
+        ]
+        Resource = "arn:aws:iam::${local.account_id}:role/github-actions-role"
       },
       {
         # compute 모듈의 오토스케일링이 최초 사용 시 AWS가 자동 생성하는 서비스연결역할
@@ -162,22 +176,18 @@ resource "aws_iam_policy" "data" {
           "s3:List*",
           "s3:CreateBucket",
           "s3:DeleteBucket",
-          "s3:PutBucketTagging",
-          "s3:PutBucketWebsite",
-          "s3:DeleteBucketWebsite",
-          "s3:PutBucketPublicAccessBlock",
-          "s3:DeleteBucketPublicAccessBlock",
-          "s3:PutBucketPolicy",
-          "s3:DeleteBucketPolicy",
-          "s3:PutBucketNotification",
-          "s3:PutBucketCORS",
-          "s3:DeleteBucketCORS",
+          "s3:PutBucket*",
+          "s3:DeleteBucket*",
           "s3:PutObject",
-          "s3:DeleteObject"
+          "s3:DeleteObject",
+          "s3:GetBucketWebsite",
+          "s3:GetBucketPublicAccessBlock",
+          "s3:GetEncryptionConfiguration",
+          "s3:GetLifecycleConfiguration"
         ]
         Resource = [
-          "arn:aws:s3:::${local.app_name_prefix}-*",
-          "arn:aws:s3:::${local.app_name_prefix}-*/*"
+          "arn:aws:s3:::*",
+          "arn:aws:s3:::*/*"
         ]
       },
       {
@@ -211,8 +221,7 @@ resource "aws_iam_policy" "data" {
           "dynamodb:UntagResource"
         ]
         Resource = [
-          "arn:aws:dynamodb:ap-northeast-2:${local.account_id}:table/${local.app_name_prefix}-*",
-          "arn:aws:dynamodb:us-east-1:${local.account_id}:table/${local.app_name_prefix}-*"
+          "arn:aws:dynamodb:*:${local.account_id}:table/*",
         ]
       },
       {
@@ -227,8 +236,7 @@ resource "aws_iam_policy" "data" {
           "logs:ListTagsForResource"
         ]
         Resource = [
-          "arn:aws:logs:*:${local.account_id}:log-group:/ecs/${local.app_name_prefix}*",
-          "arn:aws:logs:*:${local.account_id}:log-group:/ecs/${local.app_name_prefix}*:*"
+          "arn:aws:logs:*:${local.account_id}:log-group:/ecs/*"
         ]
       },
       {
@@ -312,6 +320,16 @@ resource "aws_iam_policy" "network" {
             "aws:RequestedRegion" = ["ap-northeast-2", "us-east-1"]
           }
         }
+      },
+      {
+        Sid = "EcrDescribe"
+        Effect = "Allow"
+        Action = [
+          "ecr:DescribeRepositories",
+          "ecr:DescribeRegistry",
+          "ecr:GetAuthorizationToken"
+        ]
+        Resource = "*"
       }
     ]
   })
@@ -334,10 +352,7 @@ resource "aws_iam_policy" "compute" {
           "ecs:CreateService", "ecs:UpdateService", "ecs:DeleteService", "ecs:DescribeServices",
           "ecs:TagResource", "ecs:ListTagsForResource"
         ]
-        Resource = [
-          "arn:aws:ecs:*:${local.account_id}:cluster/${local.app_name_prefix}-*",
-          "arn:aws:ecs:*:${local.account_id}:service/${local.app_name_prefix}-*/*"
-        ]
+        Resource = "*"
       },
       {
         # task definition은 AWS 문서상 리소스 단위 스코프 미지원 액션들이라 "*" 필요
@@ -474,8 +489,46 @@ resource "aws_iam_policy" "compute" {
         Condition = {
           StringEquals = {
             "aws:RequestedRegion" = ["ap-northeast-2"]
+        
           }
         }
+      },
+      {
+        # 이건 sqs 권한
+        Sid = "SqsManagement"
+        Effect = "Allow"
+        Action = [
+          "sqs:CreateQueue",
+          "sqs:DeleteQueue",
+          "sqs:GetQueueAttributes",
+          "sqs:SetQueueAttributes",
+          "sqs:ListQueueTags",
+          "sqs:TagQueue",
+          "sqs:UntagQueue"
+        ]
+        Resource = [
+          "arn:aws:sqs:*:${local.account_id}:${local.app_name_prefix}-*"
+        ]
+      },
+      {
+        Sid = "SnsManagement"
+        Effect = "Allow"
+        Action = [
+          "sns:GetTopicAttributes",
+          "sns:GetTopic",
+          "sns:ListTagsForResource",
+          "sns:CreateTopic",
+          "sns:DeleteTopic",
+          "sns:SetTopicAttributes",
+          "sns:Subscribe",
+          "sns:Unsubscribe",
+          "sns:Publish",
+          "sns:TagResource",
+          "sns:UntagResource"
+        ]
+        Resource = [
+          "arn:aws:sns:*:${local.account_id}:${local.app_name_prefix}-*"
+        ]
       }
     ]
   })
